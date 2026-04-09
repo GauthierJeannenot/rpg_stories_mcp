@@ -137,7 +137,7 @@ const TOOLS = [
         width: { type: 'number', description: 'Nombre de colonnes' },
         height: { type: 'number', description: 'Nombre de lignes' },
         cellSize: { type: 'number', description: 'Taille d\'une case en pixels pour le client React (défaut: 64)' },
-        imageUrl: { type: 'string', description: 'Chemin ou URL du JPEG de fond — transmis tel quel au client React' },
+        imageKey: { type: 'string', description: 'Clé logique du JPEG de fond (ex: "mine-des-ombres"). Le client React fait le mapping clé → asset local.' },
         ambientLight: { type: 'string', enum: ['bright', 'dim', 'dark'], description: 'Éclairage ambiant (défaut: dim)' },
       },
     },

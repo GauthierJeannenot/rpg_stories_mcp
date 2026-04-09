@@ -231,7 +231,7 @@ export class GameEngine {
     width: number;
     height: number;
     cellSize?: number;
-    imageUrl?: string;
+    imageKey?: string;
     ambientLight?: GameMap['ambientLight'];
   }): ToolResult {
     const id = config.id ?? config.name.toLowerCase().replace(/\s+/g, '-');
@@ -253,7 +253,7 @@ export class GameEngine {
       width: config.width,
       height: config.height,
       cellSize: config.cellSize ?? 64,
-      imageUrl: config.imageUrl,
+      imageKey: config.imageKey,
       cells,
       pointsOfInterest: [],
       ambientLight: config.ambientLight ?? 'dim',

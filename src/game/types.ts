@@ -185,7 +185,7 @@ export interface GameMap {
   width: number;          // columns
   height: number;         // rows
   cellSize: number;       // pixels per cell in the React client
-  imageUrl?: string;      // JPEG background path/URL — for React/Konva
+  imageKey?: string;      // logical key resolved by the React client to its local asset (e.g. "mine-des-ombres")
   cells: MapCell[][];
   pointsOfInterest: PointOfInterest[];
   ambientLight: 'bright' | 'dim' | 'dark';
