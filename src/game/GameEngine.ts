@@ -3,11 +3,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { rollDice, rollD, statModifier, attackRoll, rollDamage } from './dice.js';
-import { createDefaultDungeonMap } from './maps.js';
 import type {
-  GameState, Entity, Item, Quest, QuestObjective,
+  GameState, Entity, Item, Quest,
   AdventureModule, GameMap, MapCell, Condition,
-  ToolResult, DiceResult, CombatTurn, Stats,
+  ToolResult, CombatTurn,
 } from './types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -125,17 +124,14 @@ function makeDefaultAdventureModule(): AdventureModule {
 }
 
 function makeDefaultState(): GameState {
-  const module = makeDefaultAdventureModule();
-  const dungeonMap = createDefaultDungeonMap();
-
   return {
     session: {
       id: uuidv4(),
       name: 'Partie sans titre',
       startedAt: new Date().toISOString(),
     },
-    currentMapId: dungeonMap.id,
-    maps: { [dungeonMap.id]: dungeonMap },
+    currentMapId: '',
+    maps: {},
     entities: {},
     playerIds: [],
     combat: {
@@ -145,40 +141,12 @@ function makeDefaultState(): GameState {
       currentTurnIndex: 0,
       log: [],
     },
-    quests: {
-      'quest-main': {
-        id: 'quest-main',
-        title: 'Purger la Mine des Ombres',
-        description: 'Explorez la mine et éliminez le Seigneur Ombre pour mettre fin aux attaques sur le village.',
-        giver: 'Maire Aldric',
-        status: 'active',
-        objectives: [
-          { id: 'obj-1', description: 'Explorer la salle de garde', completed: false, optional: false },
-          { id: 'obj-2', description: 'Atteindre le hall central', completed: false, optional: false },
-          { id: 'obj-3', description: 'Vaincre Umbrak le Seigneur Ombre', completed: false, optional: false },
-          { id: 'obj-4', description: 'Détruire le cristal ténébreux', completed: false, optional: true },
-        ],
-        rewards: { xp: 300, gold: 100 },
-        notes: [],
-      },
-      'quest-gorrick': {
-        id: 'quest-gorrick',
-        title: 'Sauver Gorrick',
-        description: 'Un mineur survivant est quelque part dans la mine. Retrouvez-le et escortez-le à la sortie.',
-        status: 'inactive',
-        objectives: [
-          { id: 'obj-g1', description: 'Trouver Gorrick', completed: false, optional: false },
-          { id: 'obj-g2', description: 'Escorter Gorrick à la sortie', completed: false, optional: false },
-        ],
-        rewards: { xp: 50, gold: 25 },
-        notes: [],
-      },
-    },
-    adventureModule: module,
+    quests: {},
+    adventureModule: makeDefaultAdventureModule(),
     globalNotes: [],
     day: 1,
     timeOfDay: '18:00',
-    weather: 'Nuageux, vent froid du nord.',
+    weather: 'Clair.',
   };
 }
 
@@ -256,6 +224,52 @@ export class GameEngine {
 
   // ── Map operations ────────────────────────────────────────────────────────
 
+  createMap(config: {
+    id?: string;
+    name: string;
+    description?: string;
+    width: number;
+    height: number;
+    cellSize?: number;
+    imageUrl?: string;
+    ambientLight?: GameMap['ambientLight'];
+  }): ToolResult {
+    const id = config.id ?? config.name.toLowerCase().replace(/\s+/g, '-');
+    if (this.state.maps[id]) return { success: false, message: `Une carte avec l'id "${id}" existe déjà.` };
+
+    // Build empty cell grid — all unrevealed, not blocked by default
+    const cells: MapCell[][] = [];
+    for (let y = 0; y < config.height; y++) {
+      cells[y] = [];
+      for (let x = 0; x < config.width; x++) {
+        cells[y][x] = { x, y, revealed: false, visible: false, blocked: false, entities: [], items: [] };
+      }
+    }
+
+    const map: GameMap = {
+      id,
+      name: config.name,
+      description: config.description ?? '',
+      width: config.width,
+      height: config.height,
+      cellSize: config.cellSize ?? 64,
+      imageUrl: config.imageUrl,
+      cells,
+      pointsOfInterest: [],
+      ambientLight: config.ambientLight ?? 'dim',
+    };
+
+    this.state.maps[id] = map;
+    if (!this.state.currentMapId) this.state.currentMapId = id;
+    return { success: true, message: `Carte "${map.name}" créée (${config.width}×${config.height}).`, data: { id, width: config.width, height: config.height } };
+  }
+
+  setCurrentMap(mapId: string): ToolResult {
+    if (!this.state.maps[mapId]) return { success: false, message: `Carte "${mapId}" introuvable.` };
+    this.state.currentMapId = mapId;
+    return { success: true, message: `Carte courante: "${this.state.maps[mapId].name}".` };
+  }
+
   moveEntity(entityId: string, x: number, y: number, mapId?: string): ToolResult {
     const entity = this.state.entities[entityId];
     if (!entity) return { success: false, message: `Entité "${entityId}" introuvable.` };
@@ -269,8 +283,8 @@ export class GameEngine {
     }
 
     const cell = map.cells[y][x];
-    if (!cell.passable) {
-      return { success: false, message: `La case (${x},${y}) [${cell.terrain}] n'est pas franchissable.` };
+    if (cell.blocked) {
+      return { success: false, message: `La case (${x},${y}) est bloquée.` };
     }
 
     // Remove from old position

@@ -153,43 +153,18 @@ export interface Entity {
 }
 
 // ─── Map ──────────────────────────────────────────────────────────────────────
-
-export type TerrainType =
-  | 'floor' | 'wall' | 'door' | 'locked_door' | 'secret_door'
-  | 'water' | 'deep_water' | 'lava' | 'chasm'
-  | 'forest' | 'mountain' | 'road' | 'grass' | 'sand' | 'snow' | 'swamp'
-  | 'stairs_up' | 'stairs_down' | 'trap' | 'altar' | 'chest' | 'pillar';
-
-export interface TrapInfo {
-  type: string;
-  detected: boolean;
-  disarmed: boolean;
-  dc: number;
-  damage?: string;
-  effect?: string;
-}
-
-export interface DoorInfo {
-  open: boolean;
-  locked: boolean;
-  dc?: number;
-  key?: string;
-}
+// The visual map is owned by the React/Konva client (JPEG + grid).
+// The MCP server tracks only game-state data per cell: fog of war, occupants, items.
 
 export interface MapCell {
   x: number;
   y: number;
-  terrain: TerrainType;
-  passable: boolean;
-  revealed: boolean;       // visible on React map (fog of war)
-  visible: boolean;        // currently in line of sight
-  entities: string[];      // entity IDs occupying this cell
-  items: Item[];           // items on the ground
-  description?: string;    // read-aloud description
-  trapInfo?: TrapInfo;
-  doorInfo?: DoorInfo;
-  light?: 'bright' | 'dim' | 'dark';
-  elevation?: number;
+  revealed: boolean;    // has ever been seen — React client shows fog of war when false
+  visible: boolean;     // currently in line of sight of a player
+  blocked: boolean;     // impassable (set by GM to mark walls, obstacles, etc.)
+  entities: string[];   // entity IDs standing on this cell
+  items: Item[];        // items lying on the ground
+  description?: string; // read-aloud text for this cell
 }
 
 export interface PointOfInterest {
@@ -207,13 +182,13 @@ export interface GameMap {
   id: string;
   name: string;
   description: string;
-  width: number;
-  height: number;
-  cellSize: number;        // feet per cell (usually 5)
+  width: number;          // columns
+  height: number;         // rows
+  cellSize: number;       // pixels per cell in the React client
+  imageUrl?: string;      // JPEG background path/URL — for React/Konva
   cells: MapCell[][];
   pointsOfInterest: PointOfInterest[];
   ambientLight: 'bright' | 'dim' | 'dark';
-  theme?: string;          // dungeon, forest, city, cave…
 }
 
 // ─── Combat ───────────────────────────────────────────────────────────────────

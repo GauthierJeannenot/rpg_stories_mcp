@@ -126,6 +126,31 @@ const TOOLS = [
 
   // ── Map ────────────────────────────────────────────────────────────────────
   {
+    name: 'create_map',
+    description: 'Crée une nouvelle carte vide. La visualisation (JPEG + grille) est gérée par le client React/Konva — le serveur stocke uniquement la grille d\'état (fog of war, positions, cellules bloquées).',
+    inputSchema: {
+      type: 'object', required: ['name', 'width', 'height'],
+      properties: {
+        id: { type: 'string', description: 'Identifiant unique (généré depuis name si absent)' },
+        name: { type: 'string', description: 'Nom affiché de la carte' },
+        description: { type: 'string' },
+        width: { type: 'number', description: 'Nombre de colonnes' },
+        height: { type: 'number', description: 'Nombre de lignes' },
+        cellSize: { type: 'number', description: 'Taille d\'une case en pixels pour le client React (défaut: 64)' },
+        imageUrl: { type: 'string', description: 'Chemin ou URL du JPEG de fond — transmis tel quel au client React' },
+        ambientLight: { type: 'string', enum: ['bright', 'dim', 'dark'], description: 'Éclairage ambiant (défaut: dim)' },
+      },
+    },
+  },
+  {
+    name: 'set_current_map',
+    description: 'Change la carte active (affichée dans le client React).',
+    inputSchema: {
+      type: 'object', required: ['mapId'],
+      properties: { mapId: { type: 'string' } },
+    },
+  },
+  {
     name: 'move_entity',
     description: 'Déplace une entité vers une position (x, y) sur la carte. Met à jour la fog of war autour du nouveau point.',
     inputSchema: {
@@ -153,12 +178,21 @@ const TOOLS = [
   },
   {
     name: 'update_cell',
-    description: 'Modifie une case de la carte (ouvrir une porte, désamorcer un piège, changer le terrain, etc.).',
+    description: 'Modifie l\'état d\'une case (révéler, bloquer, ajouter une description). Le rendu visuel reste dans le client React.',
     inputSchema: {
       type: 'object', required: ['x', 'y', 'updates'],
       properties: {
         x: { type: 'number' }, y: { type: 'number' },
-        updates: { type: 'object', description: 'Champs à modifier. Ex: {"terrain": "floor", "doorInfo": {"open": true, "locked": false}}' },
+        updates: {
+          type: 'object',
+          description: 'Champs à modifier. Ex: {"blocked": true, "description": "Un mur s\'est effondré."}',
+          properties: {
+            revealed: { type: 'boolean' },
+            visible: { type: 'boolean' },
+            blocked: { type: 'boolean', description: 'Marque la case comme impassable' },
+            description: { type: 'string' },
+          },
+        },
         mapId: { type: 'string' },
       },
     },
@@ -528,6 +562,12 @@ export function createServer(): Server {
           return ok(engine.removeEntity(a.entityId as string));
 
         // ── Map ───────────────────────────────────────────────────────────
+        case 'create_map':
+          return ok(engine.createMap(a as Parameters<typeof engine.createMap>[0]));
+
+        case 'set_current_map':
+          return ok(engine.setCurrentMap(a.mapId as string));
+
         case 'move_entity':
           return ok(engine.moveEntity(a.entityId as string, a.x as number, a.y as number, a.mapId as string | undefined));
 
@@ -636,7 +676,7 @@ export function createServer(): Server {
       {
         uri: 'game://map',
         name: 'Carte courante',
-        description: 'Grille complète de la carte avec terrain, entités visibles, PdI.',
+        description: 'État de la grille: fog of war, entités par case, cases bloquées, points d\'intérêt. Le JPEG et l\'affichage visuel sont gérés côté React/Konva.',
         mimeType: 'application/json',
       },
       {
@@ -711,15 +751,19 @@ export function createServer(): Server {
 
       case 'game://map': {
         const map = engine.getMap();
-        if (!map) return { contents: [{ uri, mimeType: 'application/json', text: '{}' }] };
-        // Only send revealed cells to avoid leaking fog of war
-        const revealedMap = {
+        if (!map) return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify({ error: 'Aucune carte active. Utilise create_map pour en créer une.' }) }] };
+        // Mask unrevealed cells: send minimal stub so the React client knows to draw fog
+        const maskedMap = {
           ...map,
           cells: map.cells.map(row =>
-            row.map(cell => cell.revealed ? cell : { x: cell.x, y: cell.y, revealed: false, terrain: 'wall', passable: false, visible: false, entities: [], items: [] })
+            row.map(cell =>
+              cell.revealed
+                ? cell
+                : { x: cell.x, y: cell.y, revealed: false, visible: false, blocked: false, entities: [], items: [] }
+            )
           ),
         };
-        return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(revealedMap, null, 2) }] };
+        return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(maskedMap, null, 2) }] };
       }
 
       case 'game://entities':
