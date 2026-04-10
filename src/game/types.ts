@@ -272,6 +272,29 @@ export interface AdventureEncounter {
   rewards: { xp: number; gold?: number };
 }
 
+// ─── Map transitions ──────────────────────────────────────────────────────────
+// A transition is a portal between two maps, anchored to specific grid cells.
+// The designer declares them; Claude calls use_transition when a player uses one.
+
+export interface MapTransition {
+  id: string;             // unique within the module, e.g. "entrance-to-east-wing"
+  label: string;          // narrative label: "Porte vers l'aile est", "Entrée du verger"
+  direction: string;      // compass hint for narration: "nord", "est", "sud", "ouest", "haut", "bas"
+
+  // Exit side (current map)
+  fromMapId: string;
+  fromCell: { x: number; y: number };
+
+  // Arrival side (destination map)
+  toMapId: string;
+  toCell: { x: number; y: number };
+
+  // Optional constraints
+  requiredItemName?: string;   // item the player must carry to use this transition
+  hidden?: boolean;            // not visible until discovered (secret door, hidden path)
+  locked?: boolean;            // currently locked (can be unlocked by Claude)
+}
+
 // Map configuration declared by the adventure module designer (not by Claude at runtime)
 export interface MapConfig {
   id: string;
@@ -293,8 +316,9 @@ export interface AdventureModule {
   tone: string;
   levelRange: { min: number; max: number };
   mainQuestId: string;
-  maps: MapConfig[];               // all maps for this adventure
+  maps: MapConfig[];               // all maps for this adventure (designer-defined)
   startingMapId: string;           // which map to load first
+  transitions: MapTransition[];    // all cross-map connections (designer-defined)
   locations: AdventureLocation[];
   npcs: AdventureNPC[];
   encounters: AdventureEncounter[];

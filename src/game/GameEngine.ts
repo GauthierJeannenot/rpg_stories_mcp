@@ -42,6 +42,7 @@ function makeDefaultAdventureModule(): AdventureModule {
         startPosition: { x: 10, y: 1 },
       },
     ],
+    transitions: [],
     locations: [
       {
         id: 'loc-entrance',
@@ -289,6 +290,71 @@ export class GameEngine {
     if (!this.state.maps[mapId]) return { success: false, message: `Carte "${mapId}" introuvable.` };
     this.state.currentMapId = mapId;
     return { success: true, message: `Carte courante: "${this.state.maps[mapId].name}".` };
+  }
+
+  // Move an entity through a designer-declared transition portal
+  useTransition(entityId: string, transitionId: string): ToolResult {
+    const entity = this.state.entities[entityId];
+    if (!entity) return { success: false, message: `Entité "${entityId}" introuvable.` };
+
+    const transition = this.state.adventureModule.transitions?.find(t => t.id === transitionId);
+    if (!transition) return { success: false, message: `Transition "${transitionId}" introuvable dans le module.` };
+
+    if (transition.hidden) return { success: false, message: `Transition "${transitionId}" non découverte.` };
+    if (transition.locked) return { success: false, message: `La transition "${transition.label}" est verrouillée.` };
+
+    if (transition.requiredItemName) {
+      const hasItem = entity.inventory.some(
+        i => i.name.toLowerCase() === transition.requiredItemName!.toLowerCase(),
+      );
+      if (!hasItem) {
+        return { success: false, message: `"${entity.name}" n'a pas l'objet requis: ${transition.requiredItemName}.` };
+      }
+    }
+
+    const destMap = this.state.maps[transition.toMapId];
+    if (!destMap) return { success: false, message: `Carte de destination "${transition.toMapId}" introuvable.` };
+
+    // Remove entity from current map cell
+    if (entity.position && entity.mapId) {
+      const oldMap = this.state.maps[entity.mapId];
+      if (oldMap) {
+        const oldCell = oldMap.cells[entity.position.y]?.[entity.position.x];
+        if (oldCell) oldCell.entities = oldCell.entities.filter(id => id !== entityId);
+      }
+    }
+
+    // Place entity on destination map
+    const { x, y } = transition.toCell;
+    entity.position = { x, y };
+    entity.mapId = transition.toMapId;
+    destMap.cells[y]?.[x] && destMap.cells[y][x].entities.push(entityId);
+
+    // Switch current map to destination
+    this.state.currentMapId = transition.toMapId;
+    this.revealArea(x, y, 3, transition.toMapId);
+
+    return {
+      success: true,
+      message: `"${entity.name}" emprunte "${transition.label}" → carte "${destMap.name}" (${x},${y}).`,
+      data: { toMapId: transition.toMapId, toCell: transition.toCell, mapName: destMap.name },
+    };
+  }
+
+  // Reveal or lock a transition (e.g. player discovers a secret door)
+  setTransitionState(transitionId: string, updates: { hidden?: boolean; locked?: boolean }): ToolResult {
+    const transition = this.state.adventureModule.transitions?.find(t => t.id === transitionId);
+    if (!transition) return { success: false, message: `Transition "${transitionId}" introuvable.` };
+    if (updates.hidden !== undefined) transition.hidden = updates.hidden;
+    if (updates.locked !== undefined) transition.locked = updates.locked;
+    return { success: true, message: `Transition "${transition.label}" mise à jour.`, data: transition };
+  }
+
+  // List transitions available from a given map (visible ones only)
+  getTransitionsForMap(mapId: string): import('./types.js').MapTransition[] {
+    return (this.state.adventureModule.transitions ?? []).filter(
+      t => t.fromMapId === mapId && !t.hidden,
+    );
   }
 
   moveEntity(entityId: string, x: number, y: number, mapId?: string): ToolResult {

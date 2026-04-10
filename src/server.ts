@@ -124,16 +124,48 @@ const TOOLS = [
     },
   },
 
-  // ── Map ────────────────────────────────────────────────────────────────────
-  // Note: map creation (dimensions, imageKey, cellSize) is declared in the adventure
-  // module JSON by the designer — not by Claude at runtime. Claude only navigates
-  // between pre-declared maps using set_current_map.
+  // ── Map navigation ─────────────────────────────────────────────────────────
+  // Maps and transitions are declared by the designer in the adventure module.
+  // Claude navigates between them — it never creates them at runtime.
   {
     name: 'set_current_map',
-    description: 'Passe sur une autre carte de l\'aventure (ex: transition donjon → village). Les cartes sont déclarées dans le module d\'aventure, pas créées à la volée.',
+    description: 'Change la carte affichée sans déplacer d\'entité. Utile pour que le client React affiche une autre zone.',
     inputSchema: {
       type: 'object', required: ['mapId'],
       properties: { mapId: { type: 'string' } },
+    },
+  },
+  {
+    name: 'use_transition',
+    description: 'Fait emprunter à une entité un passage entre deux cartes (porte, couloir, escalier, lisière…). Gère automatiquement : retrait de l\'ancienne carte, placement sur la nouvelle, fog of war, changement de carte courante.',
+    inputSchema: {
+      type: 'object', required: ['entityId', 'transitionId'],
+      properties: {
+        entityId:     { type: 'string', description: 'ID de l\'entité qui se déplace' },
+        transitionId: { type: 'string', description: 'ID de la transition définie dans adventureModule.transitions' },
+      },
+    },
+  },
+  {
+    name: 'set_transition_state',
+    description: 'Révèle un passage secret (hidden: false) ou verrouille/déverrouille une porte (locked: true/false).',
+    inputSchema: {
+      type: 'object', required: ['transitionId'],
+      properties: {
+        transitionId: { type: 'string' },
+        hidden: { type: 'boolean' },
+        locked: { type: 'boolean' },
+      },
+    },
+  },
+  {
+    name: 'list_transitions',
+    description: 'Liste les transitions visibles depuis une carte — sorties, portes, chemins. Utile pour que Claude sache quels passages narrer.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mapId: { type: 'string', description: 'Défaut: carte courante' },
+      },
     },
   },
   {
@@ -550,6 +582,21 @@ export function createServer(): Server {
         // ── Map ───────────────────────────────────────────────────────────
         case 'set_current_map':
           return ok(engine.setCurrentMap(a.mapId as string));
+
+        case 'use_transition':
+          return ok(engine.useTransition(a.entityId as string, a.transitionId as string));
+
+        case 'set_transition_state':
+          return ok(engine.setTransitionState(a.transitionId as string, {
+            hidden: a.hidden as boolean | undefined,
+            locked: a.locked as boolean | undefined,
+          }));
+
+        case 'list_transitions': {
+          const mapId = (a.mapId as string | undefined) ?? engine.getState().currentMapId;
+          const transitions = engine.getTransitionsForMap(mapId);
+          return ok({ mapId, transitions });
+        }
 
         case 'move_entity':
           return ok(engine.moveEntity(a.entityId as string, a.x as number, a.y as number, a.mapId as string | undefined));
