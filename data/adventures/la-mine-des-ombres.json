@@ -1,0 +1,128 @@
+{
+  "id": "la-mine-des-ombres",
+  "title": "La Mine des Ombres",
+  "synopsis": "Les aventuriers sont engagés pour explorer une mine abandonnée d'où des créatures ont commencé à émerger.",
+  "setting": "Un complexe minier souterrain infesté de morts-vivants et de démons mineurs.",
+  "tone": "Sombre, tendu, avec des moments de découverte et d'horreur.",
+  "levelRange": { "min": 1, "max": 3 },
+  "mainQuestId": "quest-main",
+  "startingMapId": "mine-des-ombres",
+  "startingLocationId": "loc-entrance",
+  "maps": [
+    {
+      "id": "mine-des-ombres",
+      "name": "La Mine des Ombres",
+      "description": "Une mine abandonnée, infestée de créatures des ténèbres.",
+      "width": 20,
+      "height": 20,
+      "cellSize": 64,
+      "imageKey": "mine-des-ombres",
+      "ambientLight": "dark",
+      "startPosition": { "x": 10, "y": 1 }
+    }
+  ],
+  "transitions": [],
+  "locations": [
+    {
+      "id": "loc-entrance",
+      "name": "Hall d'entrée",
+      "description": "L'air froid s'engouffre depuis la surface. Des murs de pierre noire suintent d'humidité. Deux torches éteintes flanquent un couloir sombre vers le bas.",
+      "gmNotes": "Premier contact. Laisser les joueurs s'orienter. Un goblin explorateur peut être présent si l'alarme n'a pas été déclenchée.",
+      "connections": [{ "locationId": "loc-guard", "direction": "south", "description": "Un couloir s'enfonce vers le bas." }],
+      "entityIds": [],
+      "questIds": []
+    },
+    {
+      "id": "loc-guard",
+      "name": "Salle de garde",
+      "description": "Une ancienne salle de repos des mineurs. Des casiers fracturés, une table renversée. Odeur de chair en décomposition.",
+      "gmNotes": "Deux squelettes patrouillent. Fouille: clé de la salle du boss (Perception DC 14), 15 po dans un casier.",
+      "connections": [
+        { "locationId": "loc-entrance", "direction": "north" },
+        { "locationId": "loc-central", "direction": "east" }
+      ],
+      "entityIds": ["skeleton-1", "skeleton-2"],
+      "questIds": ["quest-main"],
+      "loot": [
+        {
+          "id": "item-rusty-key-001",
+          "name": "Clé rouillée",
+          "type": "tool",
+          "description": "Une clé en fer rouillée. Elle ouvre quelque chose en bas.",
+          "weight": 0.1,
+          "value": 0,
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "id": "loc-central",
+      "name": "Hall central",
+      "description": "Une large salle voûtée. Des colonnes de pierre soutiennent le plafond. Au centre, un puits scellé par une grille cadenassée.",
+      "gmNotes": "Le puits descend vers une poche de gaz (si ouvert, poison DC 13 CON, 2d6 dégâts). NPC mineur Gorrick peut être trouvé ici, blessé.",
+      "connections": [
+        { "locationId": "loc-guard", "direction": "west" },
+        { "locationId": "loc-boss", "direction": "south", "description": "Une lourde porte ferrée." }
+      ],
+      "entityIds": ["gorrick-npc"],
+      "questIds": ["quest-main", "quest-gorrick"]
+    },
+    {
+      "id": "loc-boss",
+      "name": "Chambre du Seigneur Ombre",
+      "description": "Une vaste salle taillée dans la roche noire. Des runes rougeoyantes couvrent le sol. Au centre, une silhouette encapuchonnée se tient sur un pentagramme.",
+      "gmNotes": "Boss: Umbrak le Seigneur Ombre (spectre de niveau 3). Phase 1: invoque 2 squelettes. Phase 2 (<50% hp): vol + attaque de terreur. Trésor: Épée du Crépuscule + 200po + gemmes.",
+      "connections": [{ "locationId": "loc-central", "direction": "north" }],
+      "entityIds": ["umbrak-boss"],
+      "questIds": ["quest-main"]
+    }
+  ],
+  "npcs": [
+    {
+      "id": "gorrick-npc",
+      "name": "Gorrick le Mineur",
+      "role": "Survivant blessé",
+      "personality": "Effrayé, reconnaissant, parle vite.",
+      "motivation": "Fuir la mine et retrouver sa famille.",
+      "dialogueHooks": [
+        "Il décrit le Seigneur Ombre qu'il a aperçu dans les profondeurs.",
+        "Il mentionne la clé cachée dans la salle de garde.",
+        "Il supplie les joueurs de l'escorter vers la sortie."
+      ],
+      "secrets": [
+        "Il a accidentellement brisé le sceau qui a libéré les créatures.",
+        "Il cache 50 po sur lui."
+      ],
+      "questIds": ["quest-gorrick"]
+    }
+  ],
+  "encounters": [
+    {
+      "id": "enc-patrol",
+      "name": "Patrouille de squelettes",
+      "description": "Deux squelettes armés de vieilles piques patrouillent la salle de garde.",
+      "trigger": "Entrée dans la salle de garde",
+      "difficulty": "easy",
+      "monsterTemplates": ["skeleton", "skeleton"],
+      "tactics": "Les squelettes attaquent le personnage le plus proche. Ils ne fuient jamais.",
+      "rewards": { "xp": 100, "gold": 0 }
+    },
+    {
+      "id": "enc-boss",
+      "name": "Umbrak le Seigneur Ombre",
+      "description": "Un spectre puissant lié à la mine par un ancien rituel.",
+      "trigger": "Entrée dans la chambre du boss",
+      "difficulty": "hard",
+      "monsterTemplates": ["shadow_lord"],
+      "tactics": "Commence par invoquer des squelettes. En dessous de 50% PV: passe en vol et utilise Terreur Obscure.",
+      "rewards": { "xp": 700, "gold": 200 }
+    }
+  ],
+  "lore": [
+    "La mine fut creusée il y a 200 ans par le clan Duradin.",
+    "Un accident provoqua l'effondrement d'une galerie, tuant 30 mineurs.",
+    "Leurs âmes sont restées piégées, corrompues par un shard de cristal ténébreux.",
+    "Umbrak était autrefois le contremaître de la mine, mort dans l'effondrement.",
+    "Le cristal ténébreux est au cœur du pentagramme dans la chambre du boss."
+  ]
+}

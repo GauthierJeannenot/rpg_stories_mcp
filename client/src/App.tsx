@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { GameMap } from './components/GameMap';
 import { Chat } from './components/Chat';
 import { Sidebar } from './components/Sidebar';
-import { fetchGameState, sendMessage } from './api';
+import { ModuleSelect } from './components/ModuleSelect';
+import { sendMessage } from './api';
 import type { GameData, ChatMessage, MapCell } from './types';
 import './styles.css';
 
@@ -15,18 +16,18 @@ const EMPTY_GAME_DATA: GameData = {
 };
 
 export default function App() {
+  const [view, setView] = useState<'select' | 'game'>('select');
   const [gameData, setGameData] = useState<GameData>(EMPTY_GAME_DATA);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cellInfo, setCellInfo] = useState<MapCell | null>(null);
 
-  // Initial state load
-  useEffect(() => {
-    fetchGameState()
-      .then(data => setGameData(data))
-      .catch(e => setError(`Impossible de contacter le serveur: ${e.message}`));
-  }, []);
+  function handleModuleLoaded(data: GameData) {
+    setGameData(data);
+    setMessages([]);
+    setView('game');
+  }
 
   const handleSend = useCallback(async (content: string) => {
     const userMsg: ChatMessage = {
@@ -76,6 +77,10 @@ export default function App() {
 
   const mapOk = gameData.map && !('error' in gameData.map);
 
+  if (view === 'select') {
+    return <ModuleSelect onModuleLoaded={handleModuleLoaded} />;
+  }
+
   return (
     <div className="app">
       {/* Header */}
@@ -93,6 +98,9 @@ export default function App() {
             )}
           </div>
         )}
+        <button className="change-module-btn" onClick={() => setView('select')} title="Changer de module">
+          ☰ Modules
+        </button>
       </header>
 
       {/* Main grid */}

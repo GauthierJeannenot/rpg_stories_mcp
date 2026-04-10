@@ -1,4 +1,4 @@
-import type { GameData, ToolCallRecord } from './types';
+import type { GameData, ModuleSummary, ToolCallRecord } from './types';
 
 const BASE = '/api'; // proxied by Vite to http://localhost:3001
 
@@ -16,6 +16,25 @@ export interface ChatResponse {
   entities: GameData['entities'];
   combat: GameData['combat'];
   quests: GameData['quests'];
+}
+
+export async function fetchModules(): Promise<ModuleSummary[]> {
+  const res = await fetch(`${BASE}/modules`);
+  if (!res.ok) throw new Error(`Modules fetch failed: ${res.statusText}`);
+  return res.json();
+}
+
+export async function loadModule(moduleId: string): Promise<GameData> {
+  const res = await fetch(`${BASE}/modules/load`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ moduleId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? res.statusText);
+  }
+  return res.json();
 }
 
 export async function sendMessage(

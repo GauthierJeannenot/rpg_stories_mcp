@@ -1,9 +1,15 @@
 import 'dotenv/config';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import type Anthropic from '@anthropic-ai/sdk';
-import { getMcpClient, getAnthropicTools, readMcpResource, getMcpPrompt } from './mcp.js';
+import { getMcpClient, getAnthropicTools, readMcpResource, getMcpPrompt, callMcpTool } from './mcp.js';
 import { runAgenticLoop } from './claude.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = path.join(__dirname, '../../data');
 
 const app = express();
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
@@ -22,6 +28,76 @@ async function readJson(uri: string) {
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+// List all available adventure modules (reads data/adventures/*.json)
+app.get('/api/modules', async (_req, res) => {
+  try {
+    const dir = path.join(DATA_DIR, 'adventures');
+    let files: string[];
+    try {
+      files = (await fs.readdir(dir)).filter(f => f.endsWith('.json'));
+    } catch {
+      files = [];
+    }
+
+    const modules = await Promise.all(
+      files.map(async file => {
+        try {
+          const raw = await fs.readFile(path.join(dir, file), 'utf-8');
+          const m = JSON.parse(raw);
+          return {
+            id: m.id ?? file.replace('.json', ''),
+            title: m.title ?? file.replace('.json', ''),
+            synopsis: m.synopsis ?? '',
+            setting: m.setting ?? '',
+            tone: m.tone ?? '',
+            levelRange: m.levelRange ?? { min: 1, max: 5 },
+            mapCount: (m.maps ?? []).length,
+            locationCount: (m.locations ?? []).length,
+            encounterCount: (m.encounters ?? []).length,
+            fileId: file.replace('.json', ''),
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    res.json(modules.filter(Boolean));
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+// Load an adventure module by file ID, reset session, return fresh state
+app.post('/api/modules/load', async (req, res) => {
+  const { moduleId } = req.body as { moduleId: string };
+  if (!moduleId) {
+    res.status(400).json({ error: 'moduleId required' });
+    return;
+  }
+
+  try {
+    const result = await callMcpTool('load_adventure_module', { moduleId });
+    const parsed = JSON.parse(result);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.message });
+      return;
+    }
+
+    const [state, map, entities, combat, quests] = await Promise.all([
+      readJson('game://state'),
+      readJson('game://map'),
+      readJson('game://entities'),
+      readJson('game://combat'),
+      readJson('game://quests'),
+    ]);
+
+    res.json({ state, map, entities, combat, quests });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
 
 // Full game state for initial load + React state sync
 app.get('/api/state', async (_req, res) => {

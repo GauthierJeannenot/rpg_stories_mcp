@@ -139,6 +139,19 @@ export interface GameData {
   quests: Record<string, Quest>;
 }
 
+export interface ModuleSummary {
+  id: string;
+  title: string;
+  synopsis: string;
+  setting: string;
+  tone: string;
+  levelRange: { min: number; max: number };
+  mapCount: number;
+  locationCount: number;
+  encounterCount: number;
+  fileId: string;
+}
+
 export interface ToolCallRecord {
   name: string;
   input: unknown;

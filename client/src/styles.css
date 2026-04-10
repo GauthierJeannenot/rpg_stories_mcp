@@ -606,3 +606,193 @@ html, body, #root {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Change module button (header) ───────────────────────────────────────── */
+.change-module-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.change-module-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ── Module select page ───────────────────────────────────────────────────── */
+.module-select {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 64px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(124,58,237,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, rgba(168,85,247,0.08) 0%, transparent 60%),
+    var(--bg);
+}
+
+.module-select-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.module-select-title {
+  font-family: 'Cinzel', serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.module-select-subtitle {
+  font-size: 16px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+
+.module-select-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: var(--text-dim);
+  margin-top: 48px;
+}
+
+.module-select-empty {
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: 48px;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: 1100px;
+}
+
+/* ── Module card ──────────────────────────────────────────────────────────── */
+.module-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.module-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(124,58,237,0.2);
+}
+
+.module-card--loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.module-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.module-card-title {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1.2;
+}
+
+.module-level-badge {
+  background: rgba(124,58,237,0.25);
+  border: 1px solid rgba(124,58,237,0.4);
+  color: var(--accent2);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.module-synopsis {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.module-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.module-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.module-meta-icon { font-size: 13px; }
+
+.module-tone {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+  font-style: italic;
+}
+
+.module-tone-label {
+  font-style: normal;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.module-start-btn {
+  margin-top: auto;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: var(--radius);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+}
+
+.module-start-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.module-start-btn:disabled {
+  cursor: not-allowed;
+}
+
