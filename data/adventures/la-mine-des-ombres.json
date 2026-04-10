@@ -22,6 +22,124 @@
     }
   ],
   "transitions": [],
+  "monsters": [
+    {
+      "id": "skeleton-1",
+      "name": "Squelette",
+      "type": "monster",
+      "description": "Un squelette animé armé d'une épée courte rouillée.",
+      "level": 1,
+      "stats": { "STR": 10, "DEX": 14, "CON": 15, "INT": 6, "WIS": 8, "CHA": 5 },
+      "hp": { "max": 13 },
+      "ac": 13,
+      "speed": 30,
+      "proficiencyBonus": 2,
+      "savingThrowProficiencies": [],
+      "attackBonus": 4,
+      "challengeRating": 0.25,
+      "xpReward": 50,
+      "actions": [
+        {
+          "name": "Épée courte",
+          "description": "Attaque au corps à corps",
+          "attackBonus": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing"
+        }
+      ],
+      "damageImmunities": ["poison"],
+      "conditionImmunities": ["poisoned", "exhaustion_1"],
+      "mapId": "mine-des-ombres",
+      "position": { "x": 8, "y": 7 }
+    },
+    {
+      "id": "skeleton-2",
+      "name": "Squelette",
+      "type": "monster",
+      "description": "Un squelette animé armé d'une épée courte rouillée.",
+      "level": 1,
+      "stats": { "STR": 10, "DEX": 14, "CON": 15, "INT": 6, "WIS": 8, "CHA": 5 },
+      "hp": { "max": 13 },
+      "ac": 13,
+      "speed": 30,
+      "proficiencyBonus": 2,
+      "savingThrowProficiencies": [],
+      "attackBonus": 4,
+      "challengeRating": 0.25,
+      "xpReward": 50,
+      "actions": [
+        {
+          "name": "Épée courte",
+          "description": "Attaque au corps à corps",
+          "attackBonus": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing"
+        }
+      ],
+      "damageImmunities": ["poison"],
+      "conditionImmunities": ["poisoned", "exhaustion_1"],
+      "mapId": "mine-des-ombres",
+      "position": { "x": 12, "y": 7 }
+    },
+    {
+      "id": "gorrick-npc",
+      "name": "Gorrick le Mineur",
+      "type": "npc",
+      "description": "Un mineur humain blessé, terrorisé.",
+      "race": "Humain",
+      "level": 1,
+      "stats": { "STR": 10, "DEX": 10, "CON": 10, "INT": 10, "WIS": 10, "CHA": 10 },
+      "hp": { "max": 4 },
+      "ac": 10,
+      "speed": 30,
+      "proficiencyBonus": 2,
+      "savingThrowProficiencies": [],
+      "attackBonus": 0,
+      "gold": 50,
+      "mapId": "mine-des-ombres",
+      "position": { "x": 10, "y": 11 }
+    },
+    {
+      "id": "umbrak-boss",
+      "name": "Umbrak le Seigneur Ombre",
+      "type": "monster",
+      "description": "Un spectre puissant, ancien contremaître de la mine, corrompu par le cristal ténébreux.",
+      "level": 5,
+      "stats": { "STR": 6, "DEX": 14, "CON": 13, "INT": 11, "WIS": 10, "CHA": 16 },
+      "hp": { "max": 45 },
+      "ac": 15,
+      "speed": 40,
+      "proficiencyBonus": 3,
+      "savingThrowProficiencies": ["WIS", "CHA"],
+      "attackBonus": 5,
+      "challengeRating": 3,
+      "xpReward": 700,
+      "actions": [
+        {
+          "name": "Toucher corrupteur",
+          "description": "Attaque au corps à corps. La cible doit réussir un jet de sauvegarde CON DD 13 ou subir 1d6 dégâts supplémentaires nécrotiques et sa valeur de Force est réduite de 1d4.",
+          "attackBonus": 5,
+          "damage": "2d8+2",
+          "damageType": "necrotic"
+        },
+        {
+          "name": "Terreur Obscure",
+          "description": "Recharge 5-6. Chaque créature dans un rayon de 9m doit réussir un jet de sauvegarde SAG DD 14 ou être effrayée jusqu'à la fin de son prochain tour et subir 3d8 dégâts psychiques (moitié sur réussite).",
+          "saveDC": 14,
+          "saveType": "WIS",
+          "damage": "3d8",
+          "damageType": "psychic",
+          "recharge": "5-6"
+        }
+      ],
+      "damageResistances": ["acid", "fire", "lightning", "thunder", "bludgeoning", "piercing", "slashing"],
+      "damageImmunities": ["cold", "necrotic", "poison"],
+      "conditionImmunities": ["charmed", "exhaustion_1", "frightened", "grappled", "paralyzed", "poisoned", "prone", "restrained"],
+      "senses": ["Perception des ténèbres 18m"],
+      "mapId": "mine-des-ombres",
+      "position": { "x": 10, "y": 17 }
+    }
+  ],
   "locations": [
     {
       "id": "loc-entrance",

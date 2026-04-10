@@ -322,8 +322,43 @@ export interface AdventureModule {
   locations: AdventureLocation[];
   npcs: AdventureNPC[];
   encounters: AdventureEncounter[];
+  monsters: MonsterDefinition[];   // pre-placed entities spawned on module load
   lore: string[];
   startingLocationId: string;
+}
+
+// ─── Monster definition (used in AdventureModule.monsters) ───────────────────
+// Lighter than a full Entity — GameEngine fills in the defaults on spawn.
+
+export interface MonsterDefinition {
+  id: string;
+  name: string;
+  type: EntityType;
+  description?: string;
+  race?: string;
+  level: number;
+  stats: Stats;
+  hp: { max: number };             // current = max at spawn, temporary = 0
+  ac: number;
+  speed: number;
+  proficiencyBonus: number;
+  savingThrowProficiencies?: StatKey[];
+  skillProficiencies?: string[];
+  skills?: Record<string, number>;
+  attackBonus: number;
+  position: { x: number; y: number } | null;
+  mapId?: string;                  // which map to place them on (defaults to startingMapId)
+  challengeRating?: number;
+  xpReward?: number;
+  actions?: MonsterAction[];
+  legendaryActions?: MonsterAction[];
+  reactions?: MonsterAction[];
+  damageImmunities?: string[];
+  damageResistances?: string[];
+  conditionImmunities?: Condition[];
+  senses?: string[];
+  languages?: string[];
+  gold?: number;
 }
 
 // ─── Game State ───────────────────────────────────────────────────────────────

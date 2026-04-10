@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { rollDice, rollD, statModifier, attackRoll, rollDamage } from './dice.js';
 import type {
   GameState, Entity, Item, Quest,
-  AdventureModule, GameMap, MapCell, Condition,
+  AdventureModule, MonsterDefinition, GameMap, MapCell, Condition,
   ToolResult, CombatTurn,
 } from './types.js';
 
@@ -43,6 +43,7 @@ function makeDefaultAdventureModule(): AdventureModule {
       },
     ],
     transitions: [],
+    monsters: [],
     locations: [
       {
         id: 'loc-entrance',
@@ -283,6 +284,56 @@ export class GameEngine {
       pointsOfInterest: [],
       ambientLight: cfg.ambientLight,
     };
+  }
+
+  // Internal: spawn monsters defined in the module, clearing previous non-player entities first
+  private _spawnModuleEntities(module: AdventureModule): void {
+    const playerSet = new Set(this.state.playerIds);
+
+    // Clear non-player entities from state and from map cells
+    for (const id of Object.keys(this.state.entities)) {
+      if (!playerSet.has(id)) {
+        delete this.state.entities[id];
+      }
+    }
+    for (const map of Object.values(this.state.maps)) {
+      for (const row of map.cells) {
+        for (const cell of row) {
+          cell.entities = cell.entities.filter(id => playerSet.has(id));
+        }
+      }
+    }
+
+    // Spawn each monster definition as a full Entity
+    for (const def of module.monsters ?? []) {
+      const entity: Entity = {
+        // Defaults
+        savingThrowProficiencies: [],
+        skillProficiencies: [],
+        skills: {},
+        conditions: [],
+        inventory: [],
+        gold: 0,
+        // Override with definition values
+        ...def,
+        // Normalise hp: always { current, max, temporary }
+        hp: { current: def.hp.max, max: def.hp.max, temporary: 0 },
+        // mapId defaults to startingMapId
+        mapId: def.mapId ?? module.startingMapId,
+      };
+
+      this.state.entities[entity.id] = entity;
+
+      // Place on the map cell
+      const targetMapId = entity.mapId ?? module.startingMapId;
+      const map = this.state.maps[targetMapId];
+      if (entity.position && map) {
+        const { x, y } = entity.position;
+        if (map.cells[y]?.[x] && !map.cells[y][x].entities.includes(entity.id)) {
+          map.cells[y][x].entities.push(entity.id);
+        }
+      }
+    }
   }
 
   // Claude uses this to transition between maps already declared in the adventure module
@@ -785,7 +836,10 @@ export class GameEngine {
         this.state.currentMapId = module.startingMapId;
       }
 
-      return { success: true, message: `Module "${module.title}" chargé — ${module.maps?.length ?? 0} carte(s) initialisée(s).` };
+      this._spawnModuleEntities(module);
+      const monsterCount = module.monsters?.length ?? 0;
+
+      return { success: true, message: `Module "${module.title}" chargé — ${module.maps?.length ?? 0} carte(s), ${monsterCount} entité(s) placée(s).` };
     } catch (e) {
       return { success: false, message: `Module "${moduleId}" introuvable: ${String(e)}` };
     }
