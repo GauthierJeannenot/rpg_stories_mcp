@@ -4,8 +4,6 @@ import {
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema,
   ErrorCode,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -851,18 +849,6 @@ export function createServer(): Server {
         description: 'Locations, PNJs, rencontres, lore du module chargé.',
         mimeType: 'text/markdown',
       },
-      {
-        uri: 'game://rules/player',
-        name: 'Règles joueur',
-        description: 'Règles visibles par les joueurs: résolution d\'actions, combat, magie, repos.',
-        mimeType: 'text/markdown',
-      },
-      {
-        uri: 'game://rules/gm',
-        name: 'Règles MJ',
-        description: 'Instructions narratives, tables de difficulté, gestion des monstres, style de jeu.',
-        mimeType: 'text/markdown',
-      },
     ],
   }));
 
@@ -926,142 +912,8 @@ export function createServer(): Server {
       case 'game://adventure':
         return { contents: [{ uri, mimeType: 'text/markdown', text: adventureModuleToText(state.adventureModule) }] };
 
-      case 'game://rules/player': {
-        const text = await engine.loadRulesFile('player');
-        return { contents: [{ uri, mimeType: 'text/markdown', text }] };
-      }
-
-      case 'game://rules/gm': {
-        const text = await engine.loadRulesFile('gm');
-        return { contents: [{ uri, mimeType: 'text/markdown', text }] };
-      }
-
       default:
         throw new McpError(ErrorCode.InvalidRequest, `Ressource inconnue: ${uri}`);
-    }
-  });
-
-  // ── List prompts ─────────────────────────────────────────────────────────
-
-  server.setRequestHandler(ListPromptsRequestSchema, async () => ({
-    prompts: [
-      {
-        name: 'narrator',
-        description: 'Prompt système complet pour le rôle de narrateur/MJ. Inclut l\'état courant, les règles, et le module d\'aventure.',
-        arguments: [
-          { name: 'playerName', description: 'Nom du personnage joueur principal', required: false },
-          { name: 'tone', description: 'Ton narratif: "épique", "sombre", "humoristique"', required: false },
-        ],
-      },
-      {
-        name: 'combat_narrator',
-        description: 'Prompt ciblé sur la narration de combat. Décrit les actions mécaniques de façon cinématique.',
-        arguments: [],
-      },
-    ],
-  }));
-
-  // ── Get prompt ───────────────────────────────────────────────────────────
-
-  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-    const state = engine.getState();
-    const a = args ?? {};
-
-    switch (name) {
-      case 'narrator': {
-        const playerRules = await engine.loadRulesFile('player');
-        const gmRules = await engine.loadRulesFile('gm');
-        const module = state.adventureModule;
-        const tone = a.tone ?? module.tone ?? 'épique et immersif';
-
-        const systemText = `# Rôle: Narrateur & Maître du Jeu
-
-Tu es le Narrateur et Maître du Jeu d'une partie de jeu de rôle.
-Ton rôle est DOUBLE:
-1. **Narrer** les actions, décrire le monde, donner vie aux PNJ.
-2. **Appliquer les mécaniques** en utilisant les outils MCP disponibles.
-
-## Ton narratif
-- Style: ${tone}
-- Toujours décrire en 2ème personne du pluriel ("Vous entrez dans...")
-- Rendre les combats cinématiques, les réussites satisfaisantes, les échecs intéressants
-- Ne jamais briser l'immersion sauf si le joueur pose une question hors-jeu
-
-## Module d'aventure actif: **${module.title}**
-${module.synopsis}
-**Cadre:** ${module.setting}
-**Ton:** ${module.tone}
-
-### Lore essentiel
-${module.lore.map((l, i) => `${i + 1}. ${l}`).join('\n')}
-
-### PNJ principaux
-${module.npcs.map(n => `- **${n.name}** (${n.role}): ${n.personality}. Motivation: ${n.motivation}`).join('\n')}
-
-## Règles joueur
-${playerRules}
-
-## Instructions MJ
-${gmRules}
-
-## WORKFLOW pour chaque action joueur:
-1. Détermine si un jet est nécessaire (utilise \`ability_check\`, \`saving_throw\` ou \`resolve_attack\`)
-2. Applique les résultats mécaniques (utilise les outils: \`apply_damage\`, \`heal_entity\`, \`move_entity\`, etc.)
-3. Met à jour les quêtes si pertinent (\`complete_objective\`, \`start_quest\`)
-4. Narre le résultat de façon immersive
-5. Décris ce que les joueurs voient/entendent/ressentent maintenant
-
-## Format de réponse
-- 2-4 paragraphes narratifs
-- Si combat: décrit mécaniquement ET cinématiquement chaque action
-- Termine par une question ouverte ou une description de la situation actuelle
-`;
-
-        return {
-          description: 'Prompt narrateur complet',
-          messages: [{ role: 'user', content: { type: 'text', text: systemText } }],
-        };
-      }
-
-      case 'combat_narrator': {
-        const combat = state.combat;
-        const currentTurn = engine.getCurrentCombatTurn();
-        const currentEntity = currentTurn ? state.entities[currentTurn.entityId] : null;
-
-        const text = `# Mode Combat
-
-Un combat est en cours. Round ${combat.round}.
-
-## Ordre d'initiative
-${combat.turnOrder.map((t, i) => {
-  const e = state.entities[t.entityId];
-  const marker = i === combat.currentTurnIndex ? '▶' : ' ';
-  return `${marker} ${e?.name ?? t.entityId} (ini ${t.initiative}) — PV ${e?.hp.current}/${e?.hp.max} | CA ${e?.ac}`;
-}).join('\n')}
-
-## Tour actuel: ${currentEntity?.name ?? '—'}
-${currentTurn ? `Actions: ${currentTurn.hasAction ? '✅' : '❌'} | Bonus: ${currentTurn.hasBonusAction ? '✅' : '❌'} | Mouvement: ${currentTurn.movementRemaining}ft` : ''}
-
-## Log de combat (récent)
-${combat.log.slice(-8).join('\n')}
-
-## Instructions combat
-- Utilise \`resolve_attack\` pour chaque attaque
-- Utilise \`apply_condition\` pour les effets de sorts
-- Utilise \`advance_turn\` après chaque tour
-- Décris chaque action avec des détails sensoriels (son, mouvement, impact)
-- Les monstres agissent tactiquement selon leur intelligence
-`;
-
-        return {
-          description: 'Prompt combat',
-          messages: [{ role: 'user', content: { type: 'text', text } }],
-        };
-      }
-
-      default:
-        throw new McpError(ErrorCode.InvalidRequest, `Prompt inconnu: ${name}`);
     }
   });
 
