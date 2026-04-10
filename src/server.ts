@@ -11,9 +11,127 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { GameEngine } from './game/GameEngine.js';
 import { rollDice, d20Check, statModifier } from './game/dice.js';
-import type { Condition, Entity, Item, Quest } from './game/types.js';
+import type { AdventureModule, Condition, Entity, Item, Quest } from './game/types.js';
 
 const engine = GameEngine.getInstance();
+
+// ─── Adventure module → natural text ─────────────────────────────────────────
+
+function adventureModuleToText(m: AdventureModule): string {
+  const lines: string[] = [];
+
+  const lvl = m.levelRange.min === m.levelRange.max
+    ? `Niveau ${m.levelRange.min}`
+    : `Niveaux ${m.levelRange.min}–${m.levelRange.max}`;
+
+  lines.push(`# ${m.title}`);
+  lines.push(`*${lvl} · ${m.tone}*`);
+  lines.push('');
+  lines.push(`## Synopsis`);
+  lines.push(m.synopsis);
+  lines.push('');
+  lines.push(`**Cadre :** ${m.setting}`);
+  lines.push('');
+
+  // ── Maps ──
+  if (m.maps?.length) {
+    lines.push(`## Cartes`);
+    for (const map of m.maps) {
+      const light = { bright: 'lumière vive', dim: 'lumière faible', dark: 'obscurité' }[map.ambientLight] ?? map.ambientLight;
+      lines.push(`- **${map.name}** (${map.width}×${map.height} cases, ${light})${map.description ? ' — ' + map.description : ''}`);
+    }
+    lines.push('');
+  }
+
+  // ── Transitions ──
+  if (m.transitions?.length) {
+    lines.push(`## Passages entre cartes`);
+    for (const t of m.transitions) {
+      let desc = `**${t.label}** (${t.direction}) : ${t.fromMapId} (${t.fromCell.x},${t.fromCell.y}) → ${t.toMapId} (${t.toCell.x},${t.toCell.y})`;
+      const flags: string[] = [];
+      if (t.locked) flags.push('verrouillé');
+      if (t.hidden) flags.push('caché');
+      if (t.requiredItemName) flags.push(`nécessite "${t.requiredItemName}"`);
+      if (flags.length) desc += ` [${flags.join(', ')}]`;
+      lines.push(`- ${desc}`);
+    }
+    lines.push('');
+  }
+
+  // ── Locations ──
+  if (m.locations?.length) {
+    lines.push(`## Lieux`);
+    for (const loc of m.locations) {
+      lines.push(`### ${loc.name} \`${loc.id}\``);
+      lines.push(loc.description);
+      if (loc.gmNotes) {
+        lines.push(`> **Notes MJ :** ${loc.gmNotes}`);
+      }
+      if (loc.connections?.length) {
+        const conns = loc.connections.map(c =>
+          `${c.direction}${c.description ? ' (' + c.description + ')' : ''} → \`${c.locationId}\``
+        ).join(', ');
+        lines.push(`*Connexions :* ${conns}`);
+      }
+      if (loc.entityIds?.length) {
+        lines.push(`*Entités présentes :* ${loc.entityIds.join(', ')}`);
+      }
+      if (loc.loot?.length) {
+        const lootList = loc.loot.map(i => `${i.name} (${i.description})`).join(', ');
+        lines.push(`*Butin :* ${lootList}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // ── NPCs ──
+  if (m.npcs?.length) {
+    lines.push(`## Personnages non-joueurs`);
+    for (const npc of m.npcs) {
+      lines.push(`### ${npc.name} \`${npc.id}\``);
+      lines.push(`*${npc.role}*`);
+      lines.push(`**Personnalité :** ${npc.personality}`);
+      lines.push(`**Motivation :** ${npc.motivation}`);
+      if (npc.dialogueHooks?.length) {
+        lines.push(`**Accroches :**`);
+        for (const h of npc.dialogueHooks) lines.push(`- ${h}`);
+      }
+      if (npc.secrets?.length) {
+        lines.push(`**Secrets (MJ) :**`);
+        for (const s of npc.secrets) lines.push(`- ${s}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // ── Encounters ──
+  if (m.encounters?.length) {
+    const diffLabel: Record<string, string> = {
+      easy: 'Facile', medium: 'Moyen', hard: 'Difficile', deadly: 'Mortel',
+    };
+    lines.push(`## Rencontres`);
+    for (const enc of m.encounters) {
+      lines.push(`### ${enc.name} — ${diffLabel[enc.difficulty] ?? enc.difficulty} \`${enc.id}\``);
+      lines.push(enc.description);
+      lines.push(`**Déclencheur :** ${enc.trigger}`);
+      lines.push(`**Monstres :** ${enc.monsterTemplates.join(', ')}`);
+      lines.push(`**Tactiques :** ${enc.tactics}`);
+      const rew: string[] = [`${enc.rewards.xp} XP`];
+      if (enc.rewards.gold) rew.push(`${enc.rewards.gold} po`);
+      lines.push(`**Récompenses :** ${rew.join(', ')}`);
+      lines.push('');
+    }
+  }
+
+  // ── Lore ──
+  if (m.lore?.length) {
+    lines.push(`## Lore`);
+    for (const entry of m.lore) lines.push(`- ${entry}`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
 
 // ─── Helper: wrap engine result as MCP tool response ──────────────────────────
 
@@ -731,7 +849,7 @@ export function createServer(): Server {
         uri: 'game://adventure',
         name: 'Module d\'aventure',
         description: 'Locations, PNJs, rencontres, lore du module chargé.',
-        mimeType: 'application/json',
+        mimeType: 'text/markdown',
       },
       {
         uri: 'game://rules/player',
@@ -806,7 +924,7 @@ export function createServer(): Server {
         return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(state.quests, null, 2) }] };
 
       case 'game://adventure':
-        return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify(state.adventureModule, null, 2) }] };
+        return { contents: [{ uri, mimeType: 'text/markdown', text: adventureModuleToText(state.adventureModule) }] };
 
       case 'game://rules/player': {
         const text = await engine.loadRulesFile('player');
