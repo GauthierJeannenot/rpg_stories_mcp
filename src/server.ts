@@ -125,26 +125,12 @@ const TOOLS = [
   },
 
   // ── Map ────────────────────────────────────────────────────────────────────
-  {
-    name: 'create_map',
-    description: 'Crée une nouvelle carte vide. La visualisation (JPEG + grille) est gérée par le client React/Konva — le serveur stocke uniquement la grille d\'état (fog of war, positions, cellules bloquées).',
-    inputSchema: {
-      type: 'object', required: ['name', 'width', 'height'],
-      properties: {
-        id: { type: 'string', description: 'Identifiant unique (généré depuis name si absent)' },
-        name: { type: 'string', description: 'Nom affiché de la carte' },
-        description: { type: 'string' },
-        width: { type: 'number', description: 'Nombre de colonnes' },
-        height: { type: 'number', description: 'Nombre de lignes' },
-        cellSize: { type: 'number', description: 'Taille d\'une case en pixels pour le client React (défaut: 64)' },
-        imageKey: { type: 'string', description: 'Clé logique du JPEG de fond (ex: "mine-des-ombres"). Le client React fait le mapping clé → asset local.' },
-        ambientLight: { type: 'string', enum: ['bright', 'dim', 'dark'], description: 'Éclairage ambiant (défaut: dim)' },
-      },
-    },
-  },
+  // Note: map creation (dimensions, imageKey, cellSize) is declared in the adventure
+  // module JSON by the designer — not by Claude at runtime. Claude only navigates
+  // between pre-declared maps using set_current_map.
   {
     name: 'set_current_map',
-    description: 'Change la carte active (affichée dans le client React).',
+    description: 'Passe sur une autre carte de l\'aventure (ex: transition donjon → village). Les cartes sont déclarées dans le module d\'aventure, pas créées à la volée.',
     inputSchema: {
       type: 'object', required: ['mapId'],
       properties: { mapId: { type: 'string' } },
@@ -562,9 +548,6 @@ export function createServer(): Server {
           return ok(engine.removeEntity(a.entityId as string));
 
         // ── Map ───────────────────────────────────────────────────────────
-        case 'create_map':
-          return ok(engine.createMap(a as Parameters<typeof engine.createMap>[0]));
-
         case 'set_current_map':
           return ok(engine.setCurrentMap(a.mapId as string));
 

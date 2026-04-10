@@ -272,6 +272,19 @@ export interface AdventureEncounter {
   rewards: { xp: number; gold?: number };
 }
 
+// Map configuration declared by the adventure module designer (not by Claude at runtime)
+export interface MapConfig {
+  id: string;
+  name: string;
+  description: string;
+  width: number;
+  height: number;
+  cellSize: number;      // pixels per cell in the React/Konva client
+  imageKey: string;      // key looked up by the React client → local JPEG asset
+  ambientLight: 'bright' | 'dim' | 'dark';
+  startPosition?: { x: number; y: number };  // where players spawn
+}
+
 export interface AdventureModule {
   id: string;
   title: string;
@@ -280,6 +293,8 @@ export interface AdventureModule {
   tone: string;
   levelRange: { min: number; max: number };
   mainQuestId: string;
+  maps: MapConfig[];               // all maps for this adventure
+  startingMapId: string;           // which map to load first
   locations: AdventureLocation[];
   npcs: AdventureNPC[];
   encounters: AdventureEncounter[];

@@ -24,7 +24,24 @@ function makeDefaultAdventureModule(): AdventureModule {
     tone: 'Sombre, tendu, avec des moments de découverte et d\'horreur.',
     levelRange: { min: 1, max: 3 },
     mainQuestId: 'quest-main',
+    startingMapId: 'mine-des-ombres',
     startingLocationId: 'loc-entrance',
+    // Maps are declared here by the designer — dimensions, imageKey, cellSize.
+    // The MCP server initialises the grid from this config on module load.
+    // The React client uses imageKey to find the matching local JPEG asset.
+    maps: [
+      {
+        id: 'mine-des-ombres',
+        name: 'La Mine des Ombres',
+        description: 'Une mine abandonnée, infestée de créatures des ténèbres.',
+        width: 20,
+        height: 20,
+        cellSize: 64,
+        imageKey: 'mine-des-ombres',
+        ambientLight: 'dark',
+        startPosition: { x: 10, y: 1 },
+      },
+    ],
     locations: [
       {
         id: 'loc-entrance',
@@ -124,14 +141,34 @@ function makeDefaultAdventureModule(): AdventureModule {
 }
 
 function makeDefaultState(): GameState {
+  const module = makeDefaultAdventureModule();
+
+  // Pre-build map grids from the module's map configs
+  const maps: Record<string, import('./types.js').GameMap> = {};
+  for (const cfg of module.maps ?? []) {
+    const cells: import('./types.js').MapCell[][] = [];
+    for (let y = 0; y < cfg.height; y++) {
+      cells[y] = [];
+      for (let x = 0; x < cfg.width; x++) {
+        cells[y][x] = { x, y, revealed: false, visible: false, blocked: false, entities: [], items: [] };
+      }
+    }
+    maps[cfg.id] = {
+      id: cfg.id, name: cfg.name, description: cfg.description,
+      width: cfg.width, height: cfg.height, cellSize: cfg.cellSize,
+      imageKey: cfg.imageKey, cells, pointsOfInterest: [],
+      ambientLight: cfg.ambientLight,
+    };
+  }
+
   return {
     session: {
       id: uuidv4(),
       name: 'Partie sans titre',
       startedAt: new Date().toISOString(),
     },
-    currentMapId: '',
-    maps: {},
+    currentMapId: module.startingMapId ?? '',
+    maps,
     entities: {},
     playerIds: [],
     combat: {
@@ -142,7 +179,7 @@ function makeDefaultState(): GameState {
       log: [],
     },
     quests: {},
-    adventureModule: makeDefaultAdventureModule(),
+    adventureModule: module,
     globalNotes: [],
     day: 1,
     timeOfDay: '18:00',
@@ -224,46 +261,30 @@ export class GameEngine {
 
   // ── Map operations ────────────────────────────────────────────────────────
 
-  createMap(config: {
-    id?: string;
-    name: string;
-    description?: string;
-    width: number;
-    height: number;
-    cellSize?: number;
-    imageKey?: string;
-    ambientLight?: GameMap['ambientLight'];
-  }): ToolResult {
-    const id = config.id ?? config.name.toLowerCase().replace(/\s+/g, '-');
-    if (this.state.maps[id]) return { success: false, message: `Une carte avec l'id "${id}" existe déjà.` };
-
-    // Build empty cell grid — all unrevealed, not blocked by default
+  // Internal: build a blank cell grid from a MapConfig declared in the adventure module
+  private _initMapFromConfig(cfg: import('./types.js').MapConfig): void {
     const cells: MapCell[][] = [];
-    for (let y = 0; y < config.height; y++) {
+    for (let y = 0; y < cfg.height; y++) {
       cells[y] = [];
-      for (let x = 0; x < config.width; x++) {
+      for (let x = 0; x < cfg.width; x++) {
         cells[y][x] = { x, y, revealed: false, visible: false, blocked: false, entities: [], items: [] };
       }
     }
-
-    const map: GameMap = {
-      id,
-      name: config.name,
-      description: config.description ?? '',
-      width: config.width,
-      height: config.height,
-      cellSize: config.cellSize ?? 64,
-      imageKey: config.imageKey,
+    this.state.maps[cfg.id] = {
+      id: cfg.id,
+      name: cfg.name,
+      description: cfg.description,
+      width: cfg.width,
+      height: cfg.height,
+      cellSize: cfg.cellSize,
+      imageKey: cfg.imageKey,
       cells,
       pointsOfInterest: [],
-      ambientLight: config.ambientLight ?? 'dim',
+      ambientLight: cfg.ambientLight,
     };
-
-    this.state.maps[id] = map;
-    if (!this.state.currentMapId) this.state.currentMapId = id;
-    return { success: true, message: `Carte "${map.name}" créée (${config.width}×${config.height}).`, data: { id, width: config.width, height: config.height } };
   }
 
+  // Claude uses this to transition between maps already declared in the adventure module
   setCurrentMap(mapId: string): ToolResult {
     if (!this.state.maps[mapId]) return { success: false, message: `Carte "${mapId}" introuvable.` };
     this.state.currentMapId = mapId;
@@ -685,8 +706,20 @@ export class GameEngine {
     try {
       const file = path.join(DATA_DIR, 'adventures', `${moduleId}.json`);
       const raw = await fs.readFile(file, 'utf-8');
-      this.state.adventureModule = JSON.parse(raw) as AdventureModule;
-      return { success: true, message: `Module "${moduleId}" chargé.` };
+      const module = JSON.parse(raw) as AdventureModule;
+      this.state.adventureModule = module;
+
+      // Auto-initialize all maps declared in the module
+      for (const cfg of module.maps ?? []) {
+        if (!this.state.maps[cfg.id]) {
+          this._initMapFromConfig(cfg);
+        }
+      }
+      if (module.startingMapId && this.state.maps[module.startingMapId]) {
+        this.state.currentMapId = module.startingMapId;
+      }
+
+      return { success: true, message: `Module "${module.title}" chargé — ${module.maps?.length ?? 0} carte(s) initialisée(s).` };
     } catch (e) {
       return { success: false, message: `Module "${moduleId}" introuvable: ${String(e)}` };
     }
